@@ -4,6 +4,9 @@ import org.neo4j.driver.v1.*;
 import org.slf4j.*;
 import java.util.Map;
 
+import static org.kafka.neo4j.util.Cypher.REMOVE;
+import static org.kafka.neo4j.util.Cypher.SET;
+
 /**
  * Created by jfd on 4/17/17.
  */
@@ -27,14 +30,14 @@ public class Neo4jHandlerImpl implements Neo4jHandler{
     }
 
     @Override
-    public StatementResult createNodeRelation(Session session, String cypher, Map<String,Object> params) {
+    public StatementResult createNodeRelation(Session session, String cypher) {
 
         logger.info("Start creating relation...");
 
         StatementResult result;
         try ( org.neo4j.driver.v1.Transaction tx = session.beginTransaction() )
         {
-            result = tx.run(cypher, params);
+            result = tx.run(cypher);
             tx.success();
         }
         return result;
@@ -51,98 +54,29 @@ public class Neo4jHandlerImpl implements Neo4jHandler{
     }
 
     @Override
-    public void deleteNode(Driver driver, Map<String, Object> params) {
-        Session session = driver.session();
+    public void updateNode(Session session, Map cypher) {
 
-        session.run("MATCH (n:Student{ name:{name} }) DELETE n",params);
-
-        session.close();
-
-        driver.close();
-
-    }
-
-    @Override
-    public void getAllNode(Driver driver) {
-        Session session = driver.session();
-
-        StatementResult result = session.run("START n=node(*) RETURN n.name AS name");
-
-        while (result.hasNext()) {
-
-            Record record = result.next();
-
-            System.out.println(record.get("name").asString());
+        try ( org.neo4j.driver.v1.Transaction tx = session.beginTransaction() )
+        {
+            tx.run((String)cypher.get(REMOVE));
+            tx.success();
         }
-
-        session.close();
-        driver.close();
-
-    }
-
-    @Override
-    public void deleteNodeRelation(Driver driver, Map<String, Object> params) {
-        Session session = driver.session();
-
-        session.run("MATCH (a:Student { name:{nameA} })-[r:relName]->(b:Student { name:{nameB} }) DELETE r",params);
-
-        session.close();
-
-        driver.close();
-
-    }
-
-    @Override
-    public void searchAllNodeRelation(Driver driver, String relabel) {
-        Session session = driver.session();
-
-        StatementResult result = session.run("MERGE (m)-[r:"+relabel+"]->(n) RETURN r.relAttr AS relValue");
-
-        while(result.hasNext()){
-
-            Record record = result.next();
-
-            System.out.println(record.get("relValue").asString());
+        try ( org.neo4j.driver.v1.Transaction tx = session.beginTransaction() )
+        {
+            tx.run((String)cypher.get(SET));
+            tx.success();
         }
+    }
 
-        session.close();
-        driver.close();
+    @Override
+    public void deleteNode(Session session, String cypher) {
+
+        session.run("MATCH (n:Student{ name:{name} }) DELETE n");
 
     }
 
     @Override
-    public void searchBetweenNodeRelation(Driver driver, Map<String, Object> params) {
-        Session session = driver.session();
-
-        StatementResult result = session.run("MERGE (n:Student { name:{nameA} })-[r:relName]->(m:Student { name:{nameB} }) RETURN r.relAttr AS relValue",params);
-
-        while(result.hasNext()){
-
-            Record record = result.next();
-
-            System.out.println(record.get("relValue").asString());
-        }
-
-        session.close();
-        driver.close();
-
-    }
-
-    @Override
-    public void searchOtherNode(Driver driver, String node) {
-        Session session = driver.session();
-
-        StatementResult result = session.run("MATCH (n:Student {name:{name}})-[r:relName]->(m:Student) RETURN DISTINCT m.name As nodeName", Values.parameters("name",node));
-
-        while(result.hasNext()){
-
-            Record record = result.next();
-
-            System.out.println(record.get("nodeName").asString());
-        }
-
-        session.close();
-        driver.close();
+    public void deleteAllNodesWithRelationships(Session session, String cypher) {
 
     }
 }

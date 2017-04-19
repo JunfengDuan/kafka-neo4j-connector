@@ -12,31 +12,44 @@ import java.util.Map;
  */
 public interface Neo4jHandler {
 
-    // 创建节点
+    /**
+     * Add node
+     * @param session
+     * @param cypher
+     * @param params
+     * @return
+     */
     StatementResult createNode(Session session, String cypher, Map<String, Object> params);
 
-    // 删除节点
-    void deleteNode(Driver driver, Map<String, Object> params);
+    /**
+     * Add node relationship
+     * @param session
+     * @param cypher
+     * @return
+     */
+    StatementResult createNodeRelation(Session session, String cypher);
 
-    // 得到所有节点
-    void getAllNode(Driver driver);
-
-    // 创建节点关系
-    StatementResult createNodeRelation(Session session, String cypher, Map<String, Object> params);
-
-    // 删除节点关系
-    void deleteNodeRelation(Driver driver, Map<String, Object> params);
-
-    // 查询节点所有关系属性
-    void searchAllNodeRelation(Driver driver, String relabel);
-
-    // 查询两个节点的关系属性
-    void searchBetweenNodeRelation(Driver driver, Map<String, Object> params);
-
-    // 查询此节点关联的其它节点
-    void searchOtherNode(Driver driver, String node);
-
-    //add unique constraint
+    /**
+     * Add unique constraint
+     * @param session
+     * @param cypher
+     */
     void createIndexOrUniqueConstraint(Session session, String cypher);
+
+    /**
+     * Delete one node
+     * @param session
+     * @param cypher
+     */
+    void deleteNode(Session session, String cypher);
+
+    /**
+     * Delete a node with all its relationships
+     * @param session
+     * @param cypher
+     */
+    void deleteAllNodesWithRelationships(Session session, String cypher);
+
+    void updateNode(Session session, Map cypher);
 
 }
