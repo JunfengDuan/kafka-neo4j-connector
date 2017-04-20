@@ -69,12 +69,16 @@ public class KafkaConsumerClient {
         consumersThreadPool = Executors.newFixedThreadPool(numOfPartitions, threadFactory);
 
         partitionInfoList.forEach(partitionInfo -> {
-            KafkaConsumerJob consumerJob = new KafkaConsumerJob(
-                    partitionInfo.partition(), kafkaTopics, kafkaConsumer, kafkaPollIntervalMs);
-            consumers.add(consumerJob);
-            consumersThreadPool.submit(consumerJob);
+            createConsumerInstance(partitionInfo.toString(), kafkaTopics);
         });
         logger.info("initConsumers() OK");
+    }
+
+    public void createConsumerInstance(String consumerId, List<String> kafkaTopics) {
+        KafkaConsumerJob consumerJob = new KafkaConsumerJob(
+                consumerId, kafkaTopics, kafkaConsumer, kafkaPollIntervalMs);
+        consumers.add(consumerJob);
+        consumersThreadPool.submit(consumerJob);
     }
 
     private void determineOffsetForAllPartitionsAndSeek(){
@@ -96,7 +100,7 @@ public class KafkaConsumerClient {
         kafkaConsumer.commitSync();
     }
 
-    private List<String> getKafkaTopics(KafkaConsumer consumer){
+    public List<String> getKafkaTopics(KafkaConsumer consumer){
         topicInfo = consumer.listTopics();
         kafkaTopics = topicInfo.keySet().stream().filter(key -> !key.startsWith("_")).collect(toList());
         logger.info("kafkaTopics :{}",kafkaTopics);

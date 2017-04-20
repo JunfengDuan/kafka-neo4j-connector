@@ -6,7 +6,10 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.errors.WakeupException;
+import org.kafka.neo4j.client.KafkaConsumerClient;
 import org.kafka.neo4j.exception.FailedEventsLogger;
 import org.kafka.neo4j.service.MessageHandler;
 import org.kafka.neo4j.service.MessageHandlerImpl;
@@ -14,9 +17,8 @@ import org.kafka.neo4j.util.OffsetLoggingCallbackImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Created by jfd on 4/16/17.
@@ -24,14 +26,15 @@ import java.util.Map;
 public class KafkaConsumerJob implements Runnable{
 
     private static final Logger logger = LoggerFactory.getLogger(KafkaConsumerJob.class);
+    private final AtomicBoolean closed = new AtomicBoolean(false);
     private MessageHandler messageHandler;
-    private int consumerId;
+    private String consumerId;
     private long pollIntervalMs;
     private KafkaConsumer consumer;
     private List<String> kafkaTopics;
     private OffsetLoggingCallbackImpl offsetLoggingCallback;
 
-    public KafkaConsumerJob(int consumerId, List<String> kafkaTopics, KafkaConsumer consumer, long pollIntervalMs){
+    public KafkaConsumerJob(String consumerId, List<String> kafkaTopics, KafkaConsumer consumer, long pollIntervalMs){
         this.consumerId = consumerId;
         this.kafkaTopics = kafkaTopics;
         this.consumer = consumer;
@@ -73,11 +76,21 @@ public class KafkaConsumerJob implements Runnable{
                     logger.info("Invoking commit for partition/offset : {}", partitionOffsetMap);
                     consumer.commitAsync(offsetLoggingCallback);
                 }
+
+                List<String> newTopics = topicIsChanged();
+                if(newTopics.size()>0){
+                    logger.info("Kafka topics are changed, new topics are :{}",kafkaTopics);
+                    consumer.subscribe(kafkaTopics, offsetLoggingCallback);
+                    consumer.commitSync(getPartitionAndOffset(newTopics.get(0),0));
+                }
             }
             
-        } catch (Exception e) {
-            logger.error("KafkaConsumerJob [consumerId={}] got Exception - exiting ... Exception: {}", consumerId, e.getMessage());
-        } finally {
+        } catch (WakeupException e) {
+            logger.error("KafkaConsumerJob [consumerId={}] got WakeupException - exiting ... Exception: {}", consumerId, e.getMessage());
+        } catch (java.lang.Exception l){
+            logger.error("KafkaConsumerJob [consumerId={}] got java.lang.Exception - {}", consumerId, l.getMessage());
+        }
+        finally {
             logger.warn("KafkaConsumerJob [consumerId={}] is shutting down ...", consumerId);
             consumer.close();
         }
@@ -126,10 +139,8 @@ public class KafkaConsumerJob implements Runnable{
 
         com.alibaba.fastjson.JSONObject json = com.alibaba.fastjson.JSON.parseObject(processedMessage);
         if(true){
-            logger.info("Add message-{} to batch", processedMessage);
             messageHandler.addMessageToBatch(processedMessage, topic, id);
         }else{
-            logger.info("Update message-{} to batch", processedMessage);
             messageHandler.upDateMessageToBatch(processedMessage, topic, id);
         }
     }
@@ -151,8 +162,31 @@ public class KafkaConsumerJob implements Runnable{
         return moveToTheNextBatch;
     }
 
+    private List<String> topicIsChanged(){
+        KafkaConsumerClient kafkaConsumerClient = new KafkaConsumerClient();
+        List<String> topics = kafkaConsumerClient.getKafkaTopics(consumer);
+        List<String> remain = new ArrayList<>();
+        if(topics.size() > kafkaTopics.size()){
+            remain.addAll(topics);
+            remain.removeAll(kafkaTopics);
+            kafkaTopics.addAll(topics);
+        }
+        return remain;
+    }
+
+    private Map getPartitionAndOffset(String topic, long offset){
+        Map map = new HashMap();
+        List<PartitionInfo> partitionInfos = consumer.partitionsFor(topic);
+        PartitionInfo partitionInfo = partitionInfos.get(0);
+//        KafkaConsumerClient kafkaConsumerClient = new KafkaConsumerClient();
+//        kafkaConsumerClient.createConsumerInstance(partitionInfo.toString(), Arrays.asList(topic));
+        map.put(new TopicPartition(partitionInfo.topic(),partitionInfo.partition()),new OffsetAndMetadata(offset));
+        return map;
+    }
+
     public void shutdown() {
         logger.warn("ConsumerWorker [consumerId={}] shutdown() is called  - will call consumer.wakeup()", consumerId);
+        closed.set(true);
         consumer.wakeup();
     }
 
@@ -160,7 +194,7 @@ public class KafkaConsumerJob implements Runnable{
         return offsetLoggingCallback.getPartitionOffsetMap();
     }
 
-    public int getConsumerId() {
+    public String getConsumerId() {
         return consumerId;
     }
 }

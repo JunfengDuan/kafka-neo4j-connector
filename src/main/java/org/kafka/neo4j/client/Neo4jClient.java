@@ -50,12 +50,20 @@ public class Neo4jClient {
         logger.info("Starting make graph...");
         Session session = driver.session();
         neo4jHandler = new Neo4jHandlerImpl();
+        StatementResult result;
 
         Map<String,Object> params = decode(message);
 
-        String cypher = createNodeCypher(tag, params);
+        String operate = operate(params);
+        if(CREATE_NODE.equals(operate)){
+            String nodeCypher = createNodeCypher(tag, params);
+            result = neo4jHandler.createNode(session, nodeCypher, params);
+        }else {
+            String relationCypher = createRelationCypher(tag, params);
+            result = neo4jHandler.createNodeRelation(session, relationCypher);
+        }
 
-        StatementResult result = neo4jHandler.createNode(session, cypher, params);
+        neo4jHandler.createIndexOrUniqueConstraint(session, createIndexCypher(tag, ID), createUniqueConstCypher(tag, ID));
         result.list().forEach(record -> record.values().forEach(value -> logger.info("Created node-{}",value.toString())));
         session.close();
 
@@ -80,19 +88,21 @@ public class Neo4jClient {
     /**
      * cypher of creating relationship between two nodes
      *
-     * MATCH (cust:Customer),(cc:CreditCard)
+     * MATCH (cust:Customer {id:''} ),(cc:CreditCard {id:''} )
      * CREATE (cust)-[r:DO_SHOPPING_WITH{shopdate:"12/12/2014",price:55000}]->(cc)
-     * @param tag1
-     * @param tag2
      * @param relationName
      * @param params
      * @return
      */
-    private String createRelationCypher(String tag1, String tag2, String relationName, Map<String,Object> params){
+    private String createRelationCypher(String relationName, Map<String,Object> params){
 
         List list = params.entrySet().stream().map(entry -> entry.getKey()+":"+entry.getValue()).collect(Collectors.toList());
         String rel = StringUtils.join(list, ',');
-        String match = String.format(MATCH_STRING, tag1, tag2);
+        String tag1 = (String) params.get(SOURCE);
+        String sourceId = (String) params.get(SOURCEID);
+        String tag2 = (String) params.get(TARGET);
+        String targetId = (String) params.get(TRAGETID);
+        String match = String.format(MATCH_RELATION_STRING, tag1, ID, sourceId, tag2, ID, targetId);
         String createRel = match+" "+String.format(RELATION_STRING, relationName, rel);
 
         logger.info("Create relation cypher-{}",createRel);
@@ -145,6 +155,14 @@ public class Neo4jClient {
         cypher.put(REMOVE, remove);
         cypher.put(SET, set);
         return cypher;
+    }
+
+    private String operate(Map<String, Object> params){
+        if(params.containsKey(SOURCE) && StringUtils.isNotBlank((String) params.get(TARGET))){
+            return CREATE_NODE;
+        }else{
+            return CREATE_RELATIONSHIP;
+        }
     }
 
     @PreDestroy

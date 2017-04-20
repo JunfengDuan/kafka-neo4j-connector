@@ -44,11 +44,16 @@ public class Neo4jHandlerImpl implements Neo4jHandler{
     }
 
     @Override
-    public void createIndexOrUniqueConstraint(Session session, String cypher){
+    public void createIndexOrUniqueConstraint(Session session, String indexCypher, String uniqueCypher){
 
         try ( org.neo4j.driver.v1.Transaction tx = session.beginTransaction() )
         {
-            tx.run(cypher);
+            tx.run(indexCypher);
+            tx.success();
+        }
+        try ( org.neo4j.driver.v1.Transaction tx = session.beginTransaction() )
+        {
+            tx.run(uniqueCypher);
             tx.success();
         }
     }
@@ -66,6 +71,23 @@ public class Neo4jHandlerImpl implements Neo4jHandler{
             tx.run((String)cypher.get(SET));
             tx.success();
         }
+    }
+
+    @Override
+    public StatementResult queryNode(Session session, String cypher) {
+
+        StatementResult result;
+        try ( org.neo4j.driver.v1.Transaction tx = session.beginTransaction() )
+        {
+            result = tx.run(cypher);
+            tx.success();
+        }
+        return result;
+    }
+
+    @Override
+    public StatementResult queryRelationship(Session session, String cypher) {
+        return null;
     }
 
     @Override

@@ -32,9 +32,10 @@ public interface Neo4jHandler {
     /**
      * Add unique constraint
      * @param session
-     * @param cypher
+     * @param indexCypher
+     * @param uniqueCypher
      */
-    void createIndexOrUniqueConstraint(Session session, String cypher);
+    void createIndexOrUniqueConstraint(Session session, String indexCypher, String uniqueCypher);
 
     /**
      * Delete one node
@@ -51,5 +52,9 @@ public interface Neo4jHandler {
     void deleteAllNodesWithRelationships(Session session, String cypher);
 
     void updateNode(Session session, Map cypher);
+
+    StatementResult queryNode(Session session, String cypher);
+
+    StatementResult queryRelationship(Session session, String cypher);
 
 }
