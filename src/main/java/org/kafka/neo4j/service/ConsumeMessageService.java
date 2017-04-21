@@ -21,6 +21,6 @@ public class ConsumeMessageService {
 
     public void postToNeo4j() {
         logger.info("Starting post messages {} to neo4j, topic is: {}",inputMessage, topic);
-//        neo4jClient.makeGraph(topic,inputMessage);
+        neo4jClient.makeGraph(topic,inputMessage);
     }
 }

@@ -33,6 +33,9 @@ public class KafkaConsumerJob implements Runnable{
     private KafkaConsumer consumer;
     private List<String> kafkaTopics;
     private OffsetLoggingCallbackImpl offsetLoggingCallback;
+    private int numMessagesInBatch = 0;
+    private int numProcessedMessages = 0;
+    private int numSkippedIndexingMessages = 0;
 
     public KafkaConsumerJob(Properties kafkaProperties, String consumerId, List<String> kafkaTopics, long pollIntervalMs){
         this.consumerId = consumerId;
@@ -51,16 +54,15 @@ public class KafkaConsumerJob implements Runnable{
             consumer.subscribe(kafkaTopics, offsetLoggingCallback);
             
             while (true){
-                int numProcessedMessages = 0;
-                int numSkippedIndexingMessages = 0;
-                int numMessagesInBatch = 0;
+                numMessagesInBatch = 0;
+                numProcessedMessages = 0;
+                numSkippedIndexingMessages = 0;
                 long offsetOfNextBatch = 0;
 
                 logger.debug("consumerId={}; about to call consumer.poll() ...", consumerId);
                 ConsumerRecords<String, String> records = consumer.poll(pollIntervalMs);
                 Map<Integer, Long> partitionOffsetMap = new HashMap<>();
-                records.forEach(record ->processedMessage(record, numMessagesInBatch, partitionOffsetMap,
-                        numProcessedMessages, numSkippedIndexingMessages));
+                records.forEach(record ->processedMessage(record, partitionOffsetMap));
 
                 logger.info("Total {} of messages in this batch; {} of successfully transformed and added to Index; {} of skipped from indexing; offsetOfNextBatch: {}",
                         numMessagesInBatch, numProcessedMessages, numSkippedIndexingMessages, offsetOfNextBatch);
@@ -99,13 +101,9 @@ public class KafkaConsumerJob implements Runnable{
     /**
      * Process kafka message before post to neo4j
      * @param record one kafka message
-     * @param numMessagesInBatch
      * @param partitionOffsetMap map of messages's offsets
-     * @param numProcessedMessages
-     * @param numSkippedIndexingMessages
      */
-    private void processedMessage(ConsumerRecord record, int numMessagesInBatch, Map partitionOffsetMap,
-                                  int numProcessedMessages, int numSkippedIndexingMessages){
+    private void processedMessage(ConsumerRecord record, Map partitionOffsetMap){
         numMessagesInBatch++;
         Map<String, Object> data = new HashMap<>();
         data.put("partition", record.partition());

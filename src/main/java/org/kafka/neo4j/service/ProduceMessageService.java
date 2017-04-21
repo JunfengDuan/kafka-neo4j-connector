@@ -32,8 +32,8 @@ public class ProduceMessageService {
     public static Map getJsonObject1(){
         Map<String, JSONObject> map = new HashMap();
         JSONObject cadreJson = new JSONObject();
-        cadreJson.put("id", "1");
-        cadreJson.put("name","周杰伦");
+        cadreJson.put("id", "2");
+        cadreJson.put("name","汪峰");
 //        cadreJson.put("parentTableName", "");
 //        cadreJson.put("parentId", "");
 
@@ -46,7 +46,7 @@ public class ProduceMessageService {
         eduJson.put("parentId", cadreJson.get("id"));
 
 //        eduArray.add(eduJson);
-        map.put("p2",cadreJson);
+        map.put("p1",cadreJson);
 //        map.put("edu",eduJson);
         return  map;
     }

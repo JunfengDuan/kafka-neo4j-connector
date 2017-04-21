@@ -50,11 +50,13 @@ public class Neo4jHandlerImpl implements Neo4jHandler{
         {
             tx.run(indexCypher);
             tx.success();
+            logger.info("Index created successfully");
         }
         try ( org.neo4j.driver.v1.Transaction tx = session.beginTransaction() )
         {
             tx.run(uniqueCypher);
             tx.success();
+            logger.info("Unique constraint created successfully");
         }
     }
 

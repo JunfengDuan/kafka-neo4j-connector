@@ -15,6 +15,7 @@ import javax.annotation.PreDestroy;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static org.kafka.neo4j.util.Cypher.*;
@@ -34,6 +35,7 @@ public class Neo4jClient {
     private String password;
     private static Driver driver;
     private Neo4jHandler neo4jHandler;
+    private AtomicInteger retry = new AtomicInteger(0);
 
 
     @PostConstruct
@@ -50,23 +52,25 @@ public class Neo4jClient {
         logger.info("Starting make graph...");
         Session session = driver.session();
         neo4jHandler = new Neo4jHandlerImpl();
-        StatementResult result;
+        StatementResult result = null;
 
         Map<String,Object> params = decode(message);
-
         String operate = operate(params);
-        if(CREATE_NODE.equals(operate)){
-            String nodeCypher = createNodeCypher(tag, params);
-            result = neo4jHandler.createNode(session, nodeCypher, params);
-        }else {
-            String relationCypher = createRelationCypher(tag, params);
-            result = neo4jHandler.createNodeRelation(session, relationCypher);
+        try {
+            if(CREATE_NODE.equals(operate)){
+                String nodeCypher = createNodeCypher(tag, params);
+                result = neo4jHandler.createNode(session, nodeCypher, params);
+            }else {
+                String relationCypher = createRelationCypher(tag, params);
+                result = neo4jHandler.createNodeRelation(session, relationCypher);
+            }
+            logger.info("Successfully created :{}",result.list());
+        } catch (Exception e) {
+            logger.error("{} failed, exception :{}",operate, e.getMessage());
+        } finally {
+            session.close();
         }
-
-        neo4jHandler.createIndexOrUniqueConstraint(session, createIndexCypher(tag, ID), createUniqueConstCypher(tag, ID));
-        result.list().forEach(record -> record.values().forEach(value -> logger.info("Created node-{}",value.toString())));
-        session.close();
-
+//        neo4jHandler.createIndexOrUniqueConstraint(session, createIndexCypher(tag, ID), createUniqueConstCypher(tag, ID));
     }
 
     /**
@@ -101,7 +105,7 @@ public class Neo4jClient {
         String tag1 = (String) params.get(SOURCE);
         String sourceId = (String) params.get(SOURCEID);
         String tag2 = (String) params.get(TARGET);
-        String targetId = (String) params.get(TRAGETID);
+        String targetId = (String) params.get(TARGETID);
         String match = String.format(MATCH_RELATION_STRING, tag1, ID, sourceId, tag2, ID, targetId);
         String createRel = match+" "+String.format(RELATION_STRING, relationName, rel);
 
@@ -158,10 +162,15 @@ public class Neo4jClient {
     }
 
     private String operate(Map<String, Object> params){
-        if(params.containsKey(SOURCE) && StringUtils.isNotBlank((String) params.get(TARGET))){
-            return CREATE_NODE;
-        }else{
+        boolean sourceFlag = params.containsKey(SOURCE) && StringUtils.isNotBlank((String) params.get(SOURCE));
+        boolean targetFlag = params.containsKey(TARGET) && StringUtils.isNotBlank((String) params.get(TARGET));
+        boolean sourceIdFlag = params.containsKey(SOURCEID) && StringUtils.isNotBlank((String) params.get(SOURCEID));
+        boolean targetIdFlag = params.containsKey(TARGETID) && StringUtils.isNotBlank((String) params.get(TARGETID));
+        boolean flag = sourceFlag && targetFlag && sourceIdFlag && targetIdFlag;
+        if(flag){
             return CREATE_RELATIONSHIP;
+        }else{
+            return CREATE_NODE;
         }
     }
 

@@ -7,13 +7,13 @@ public interface Cypher {
 
     String ID = "recordid";
     String SOURCEID = "sourceid";
-    String TRAGETID = "targetid";
+    String TARGETID = "targetid";
     String REMOVE = "REMOVE";
     String SET = "SET";
     String CREATE_NODE = "create_node";
     String CREATE_RELATIONSHIP = "create_relationship";
     String SOURCE = "sourceentity";
-    String TARGET = "sourceentity";
+    String TARGET = "targetentity";
     /**
      * tag,
      * properties.
@@ -70,7 +70,7 @@ public interface Cypher {
      * index field,
      * field value,
      */
-    String QUERY_NODE_STRING = "MATCH (n:%s { %s: %s })  RETURN n";
+    String QUERY_NODE_STRING = "MATCH (n:%s { %s: %s }),  RETURN n";
 
     /**
      * tag1,
