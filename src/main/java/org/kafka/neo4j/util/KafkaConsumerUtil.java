@@ -37,21 +37,18 @@ public class KafkaConsumerUtil {
     private  int kafkaReinitSleepTimeMs;
 
     private static final Logger logger = LoggerFactory.getLogger(KafkaConsumerUtil.class);
-    private static KafkaConsumer<String, String> kafkaConsumer;
     private static final Properties kafkaProperties = new Properties();
 
-    public KafkaConsumer getConsumer() {
-        if (kafkaConsumer == null) {
-            kafkaProperties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaBrokersList);
-            kafkaProperties.put(ConsumerConfig.GROUP_ID_CONFIG, consumerGroupName);
-            kafkaProperties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-            kafkaProperties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-            kafkaProperties.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, consumerSessionTimeoutMs);
-            kafkaProperties.put(ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG, maxPartitionFetchBytes);
-            kafkaProperties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
-            kafkaConsumer = new KafkaConsumer<>(kafkaProperties);
-        }
-        return kafkaConsumer;
+    public Properties getKafkaProperties() {
+        kafkaProperties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaBrokersList);
+        kafkaProperties.put(ConsumerConfig.GROUP_ID_CONFIG, consumerGroupName);
+        kafkaProperties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        kafkaProperties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        kafkaProperties.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, consumerSessionTimeoutMs);
+        kafkaProperties.put(ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG, maxPartitionFetchBytes);
+        kafkaProperties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+        logger.info("kafka properties are :{}",kafkaProperties.toString());
+        return kafkaProperties;
     }
 }
 

@@ -42,7 +42,8 @@ public class KafkaConsumerClient {
     private ThreadFactory threadFactory;
     private List<KafkaConsumerJob> consumers;
 
-    private KafkaConsumer kafkaConsumer;
+//    private KafkaConsumer kafkaConsumer;
+    private Properties kafkaProperties;
     private static Map<String, List<PartitionInfo>> topicInfo = new HashMap<>();
     private static List<String> kafkaTopics = new ArrayList<>();
     private ExecutorService consumersThreadPool = null;
@@ -50,7 +51,7 @@ public class KafkaConsumerClient {
 
     public void init(){
         logger.info("Initializing KafkaConsumerClient...");
-        kafkaConsumer = kafkaConsumerUtil.getConsumer();
+        kafkaProperties = kafkaConsumerUtil.getKafkaProperties();
         determineOffsetForAllPartitionsAndSeek();
         initConsumers();
         logger.info("KafkaConsumerClient is Initialized OK");
@@ -70,34 +71,36 @@ public class KafkaConsumerClient {
 
         partitionInfoList.forEach(partitionInfo -> {
             createConsumerInstance(partitionInfo.toString(), kafkaTopics);
+
         });
         logger.info("initConsumers() OK");
     }
 
     public void createConsumerInstance(String consumerId, List<String> kafkaTopics) {
-        KafkaConsumerJob consumerJob = new KafkaConsumerJob(
-                consumerId, kafkaTopics, kafkaConsumer, kafkaPollIntervalMs);
+        KafkaConsumerJob consumerJob = new KafkaConsumerJob(kafkaProperties, consumerId, kafkaTopics, kafkaPollIntervalMs);
         consumers.add(consumerJob);
         consumersThreadPool.submit(consumerJob);
     }
 
     private void determineOffsetForAllPartitionsAndSeek(){
-        getKafkaTopics(kafkaConsumer);
+        KafkaConsumer consumer = new KafkaConsumer(kafkaProperties);
+        getKafkaTopics(consumer);
         if (kafkaTopics.size()==0){
             return;
         }
-        kafkaConsumer.subscribe(kafkaTopics);
+        consumer.subscribe(kafkaTopics);
 
         //Make init poll to get assigned partitions
-        kafkaConsumer.poll(kafkaPollIntervalMs);
-        Set<TopicPartition> assignedTopicPartitions = kafkaConsumer.assignment();
+        consumer.poll(kafkaPollIntervalMs);
+        Set<TopicPartition> assignedTopicPartitions = consumer.assignment();
         assignedTopicPartitions.forEach(topicPartition -> {
-            long offsetBeforeSeek = kafkaConsumer.position(topicPartition);
-            logger.info("Offset for partition: {} is moved from : {} to {}", topicPartition.partition(), offsetBeforeSeek, kafkaConsumer.position(topicPartition));
+            long offsetBeforeSeek = consumer.position(topicPartition);
+            logger.info("Offset for partition: {} is moved from : {} to {}", topicPartition.partition(), offsetBeforeSeek, consumer.position(topicPartition));
             logger.info("Offset position during the startup for consumerId : {}, partition : {}, offset : {}",
-                    Thread.currentThread().getName(), topicPartition.partition(), kafkaConsumer.position(topicPartition));
+                    Thread.currentThread().getName(), topicPartition.partition(), consumer.position(topicPartition));
         });
-        kafkaConsumer.commitSync();
+        consumer.commitSync();
+        consumer.close();
     }
 
     public List<String> getKafkaTopics(KafkaConsumer consumer){

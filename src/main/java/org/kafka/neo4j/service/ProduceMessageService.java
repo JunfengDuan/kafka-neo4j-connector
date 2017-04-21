@@ -46,7 +46,7 @@ public class ProduceMessageService {
         eduJson.put("parentId", cadreJson.get("id"));
 
 //        eduArray.add(eduJson);
-        map.put("w2",cadreJson);
+        map.put("p2",cadreJson);
 //        map.put("edu",eduJson);
         return  map;
     }

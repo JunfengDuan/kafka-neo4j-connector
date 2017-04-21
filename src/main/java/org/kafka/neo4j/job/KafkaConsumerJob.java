@@ -34,14 +34,14 @@ public class KafkaConsumerJob implements Runnable{
     private List<String> kafkaTopics;
     private OffsetLoggingCallbackImpl offsetLoggingCallback;
 
-    public KafkaConsumerJob(String consumerId, List<String> kafkaTopics, KafkaConsumer consumer, long pollIntervalMs){
+    public KafkaConsumerJob(Properties kafkaProperties, String consumerId, List<String> kafkaTopics, long pollIntervalMs){
         this.consumerId = consumerId;
         this.kafkaTopics = kafkaTopics;
-        this.consumer = consumer;
+        this.consumer = new KafkaConsumer(kafkaProperties);
         this.pollIntervalMs = pollIntervalMs;
         messageHandler = new MessageHandlerImpl();
         offsetLoggingCallback = new OffsetLoggingCallbackImpl();
-        logger.info("Created ConsumerWorker with properties: consumerId={}, kafkaTopic={}", consumerId, kafkaTopics);
+        logger.info("Created KafkaConsumerJob with properties: consumerId={}, kafkaTopic={}", consumerId, kafkaTopics);
     }
 
     @Override
@@ -51,7 +51,6 @@ public class KafkaConsumerJob implements Runnable{
             consumer.subscribe(kafkaTopics, offsetLoggingCallback);
             
             while (true){
-
                 int numProcessedMessages = 0;
                 int numSkippedIndexingMessages = 0;
                 int numMessagesInBatch = 0;
@@ -87,8 +86,8 @@ public class KafkaConsumerJob implements Runnable{
             
         } catch (WakeupException e) {
             logger.error("KafkaConsumerJob [consumerId={}] got WakeupException - exiting ... Exception: {}", consumerId, e.getMessage());
-        } catch (java.lang.Exception l){
-            logger.error("KafkaConsumerJob [consumerId={}] got java.lang.Exception - {}", consumerId, l.getMessage());
+        } catch (Exception e){
+            logger.error("KafkaConsumerJob [consumerId={}] got java.lang.Exception - {}", consumerId, e.getMessage());
         }
         finally {
             logger.warn("KafkaConsumerJob [consumerId={}] is shutting down ...", consumerId);
@@ -113,7 +112,7 @@ public class KafkaConsumerJob implements Runnable{
         data.put("offset", record.offset());
         data.put("value", record.value());
 
-        logger.debug("consumerId={}; recieved record: {}", consumerId, data);
+        logger.debug("consumerId={}; received record: {}", consumerId, data);
 
         try {
             String processedMessage = messageHandler.transformMessage(record.offset(), (String) record.value());
@@ -150,7 +149,7 @@ public class KafkaConsumerJob implements Runnable{
      * @return
      * @throws Exception
      */
-    private boolean aboutPostToNeo4j() throws Exception{
+    private boolean aboutPostToNeo4j(){
         boolean moveToTheNextBatch = true;
         try {
             messageHandler.postToNeo4j();
