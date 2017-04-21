@@ -62,16 +62,16 @@ public class KafkaConsumerJob implements Runnable{
                 logger.debug("consumerId={}; about to call consumer.poll() ...", consumerId);
                 ConsumerRecords<String, String> records = consumer.poll(pollIntervalMs);
                 Map<Integer, Long> partitionOffsetMap = new HashMap<>();
-                records.forEach(record ->processedMessage(record, partitionOffsetMap));
-
-                logger.info("Total {} of messages in this batch; {} of successfully transformed and added to Index; {} of skipped from indexing; offsetOfNextBatch: {}",
-                        numMessagesInBatch, numProcessedMessages, numSkippedIndexingMessages, offsetOfNextBatch);
 
                 // push to neo4j whole batch
                 boolean moveToNextBatch = false;
                 if (!records.isEmpty()) {
-                    moveToNextBatch = aboutPostToNeo4j();
+                    moveToNextBatch = aboutPostToNeo4j(records, partitionOffsetMap);
                 }
+
+
+                logger.info("Total {} of messages in this batch; {} of successfully transformed and added to Index; {} of skipped from indexing; offsetOfNextBatch: {}",
+                        numMessagesInBatch, numProcessedMessages, numSkippedIndexingMessages, offsetOfNextBatch);
 
                 if (moveToNextBatch) {
                     logger.info("Invoking commit for partition/offset : {}", partitionOffsetMap);
@@ -114,7 +114,7 @@ public class KafkaConsumerJob implements Runnable{
 
         try {
             String processedMessage = messageHandler.transformMessage(record.offset(), (String) record.value());
-            addOrUpdateMessageToBatch(processedMessage, record.topic(), (String) record.key());
+            messageHandler.postToNeo4j(processedMessage, record.topic(), (String) record.key());
             partitionOffsetMap.put(record.partition(), record.offset());
             numProcessedMessages++;
             
@@ -126,31 +126,14 @@ public class KafkaConsumerJob implements Runnable{
     }
 
     /**
-     * Pre-process message, add message to batch task
-     * @param processedMessage
-     * @param topic
-     * @param id
-     * @throws Exception
-     */
-    private void addOrUpdateMessageToBatch(String processedMessage, String topic, String id) throws Exception{
-
-        com.alibaba.fastjson.JSONObject json = com.alibaba.fastjson.JSON.parseObject(processedMessage);
-        if(true){
-            messageHandler.addMessageToBatch(processedMessage, topic, id);
-        }else{
-            messageHandler.upDateMessageToBatch(processedMessage, topic, id);
-        }
-    }
-
-    /**
      * Post kafka message to neo4j
      * @return
      * @throws Exception
      */
-    private boolean aboutPostToNeo4j(){
+    private boolean aboutPostToNeo4j(ConsumerRecords<String, String> records, Map<Integer, Long> partitionOffsetMap){
         boolean moveToTheNextBatch = true;
         try {
-            messageHandler.postToNeo4j();
+            records.forEach(record ->processedMessage(record, partitionOffsetMap));
         } catch (Exception e) {
             moveToTheNextBatch = false;
             logger.error("Error posting messages to Neo4j - will re-try processing the batch; error: {}", e.getMessage());

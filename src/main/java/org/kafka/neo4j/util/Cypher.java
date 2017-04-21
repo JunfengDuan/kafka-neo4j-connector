@@ -41,7 +41,7 @@ public interface Cypher {
      * index,
      * index field
      */
-    String MATCH_RELATION_STRING = "MATCH (node1:%s {%s:%s}),(node2:%s {%s:%s})";
+    String MATCH_RELATION_STRING = "MATCH (node1:%s {%s:'%s'}),(node2:%s {%s:'%s'})";
 
     /**
      * relation name,

@@ -93,6 +93,7 @@ public class KafkaConsumerClient {
         //Make init poll to get assigned partitions
         consumer.poll(kafkaPollIntervalMs);
         Set<TopicPartition> assignedTopicPartitions = consumer.assignment();
+//        consumer.seekToBeginning(assignedTopicPartitions);
         assignedTopicPartitions.forEach(topicPartition -> {
             long offsetBeforeSeek = consumer.position(topicPartition);
             logger.info("Offset for partition: {} is moved from : {} to {}", topicPartition.partition(), offsetBeforeSeek, consumer.position(topicPartition));

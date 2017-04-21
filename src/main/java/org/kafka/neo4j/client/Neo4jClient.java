@@ -52,19 +52,19 @@ public class Neo4jClient {
         logger.info("Starting make graph...");
         Session session = driver.session();
         neo4jHandler = new Neo4jHandlerImpl();
-        StatementResult result = null;
+//        StatementResult result = null;
 
         Map<String,Object> params = decode(message);
         String operate = operate(params);
         try {
             if(CREATE_NODE.equals(operate)){
                 String nodeCypher = createNodeCypher(tag, params);
-                result = neo4jHandler.createNode(session, nodeCypher, params);
+                neo4jHandler.createNode(session, nodeCypher, params);
             }else {
                 String relationCypher = createRelationCypher(tag, params);
-                result = neo4jHandler.createNodeRelation(session, relationCypher);
+                neo4jHandler.createNodeRelation(session, relationCypher);
             }
-            logger.info("Successfully created :{}",result.list());
+            logger.info("Successfully created :{}",message);
         } catch (Exception e) {
             logger.error("{} failed, exception :{}",operate, e.getMessage());
         } finally {
@@ -100,11 +100,14 @@ public class Neo4jClient {
      */
     private String createRelationCypher(String relationName, Map<String,Object> params){
 
-        List list = params.entrySet().stream().map(entry -> entry.getKey()+":"+entry.getValue()).collect(Collectors.toList());
+        List<String> list = params.entrySet().stream().filter(e ->
+            !e.getKey().equals(SOURCE) && !e.getKey().equals(TARGET) && !e.getKey().equals(SOURCEID) && !e.getKey().equals(TARGETID)
+        ).map(entry -> entry.getKey()+":'"+entry.getValue()+"'").collect(Collectors.toList());
+
         String rel = StringUtils.join(list, ',');
-        String tag1 = (String) params.get(SOURCE);
+        String tag1 = (String) params.get(SOURCE) == null ? "" : (String) ((String) params.get(SOURCE)).toLowerCase();
         String sourceId = (String) params.get(SOURCEID);
-        String tag2 = (String) params.get(TARGET);
+        String tag2 = (String) params.get(TARGET) == null ? "" : (String) ((String) params.get(TARGET)).toLowerCase();
         String targetId = (String) params.get(TARGETID);
         String match = String.format(MATCH_RELATION_STRING, tag1, ID, sourceId, tag2, ID, targetId);
         String createRel = match+" "+String.format(RELATION_STRING, relationName, rel);
@@ -137,7 +140,7 @@ public class Neo4jClient {
     private Map<String,Object> decode(String message) {
         Map<String,Object> params = new HashMap<>();
         JSONObject jsonObject = JSON.parseObject(message);
-        jsonObject.entrySet().forEach(entry -> params.put(entry.getKey(),entry.getValue()));
+        jsonObject.entrySet().forEach(entry -> params.put(entry.getKey().toLowerCase(),entry.getValue()));
         return params;
     }
 
@@ -161,7 +164,9 @@ public class Neo4jClient {
         return cypher;
     }
 
-    private String operate(Map<String, Object> params){
+    private String operate(Map<String, Object> paras){
+        Map<String, Object> params = new HashMap<>();
+        paras.entrySet().forEach(entry -> params.put(entry.getKey().toLowerCase(),entry.getValue()));
         boolean sourceFlag = params.containsKey(SOURCE) && StringUtils.isNotBlank((String) params.get(SOURCE));
         boolean targetFlag = params.containsKey(TARGET) && StringUtils.isNotBlank((String) params.get(TARGET));
         boolean sourceIdFlag = params.containsKey(SOURCEID) && StringUtils.isNotBlank((String) params.get(SOURCEID));
