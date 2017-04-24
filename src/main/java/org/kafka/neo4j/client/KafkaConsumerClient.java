@@ -5,6 +5,7 @@ import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.kafka.neo4j.job.KafkaConsumerJob;
 import org.kafka.neo4j.util.KafkaConsumerUtil;
+import org.kafka.neo4j.util.StartOption;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.*;
@@ -23,6 +24,7 @@ import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
 import static java.util.stream.Collectors.toList;
+import static org.kafka.neo4j.util.StartOption.*;
 
 /**
  * Created by jfd on 4/16/17.
@@ -35,6 +37,8 @@ public class KafkaConsumerClient {
     // interval in MS to poll Kafka brokers for messages, in case there were no messages during the previous interval
     @Value("${kafkaPollIntervalMs:10000}")
     private  long kafkaPollIntervalMs;
+    @Value("${startOption:RESTART}")
+    private StartOption startOption;
     @Autowired
     private KafkaConsumerUtil kafkaConsumerUtil;
     private static final Logger logger = LoggerFactory.getLogger(KafkaConsumerClient.class);
@@ -93,7 +97,18 @@ public class KafkaConsumerClient {
         //Make init poll to get assigned partitions
         consumer.poll(kafkaPollIntervalMs);
         Set<TopicPartition> assignedTopicPartitions = consumer.assignment();
-//        consumer.seekToBeginning(assignedTopicPartitions);
+
+        switch (startOption) {
+            case EARLIEST:
+                consumer.seekToBeginning(assignedTopicPartitions);
+                break;
+            case LATEST:
+                consumer.seekToEnd(assignedTopicPartitions);
+                break;
+            case RESTART:
+            default:
+                break;
+        }
         assignedTopicPartitions.forEach(topicPartition -> {
             long offsetBeforeSeek = consumer.position(topicPartition);
             logger.info("Offset for partition: {} is moved from : {} to {}", topicPartition.partition(), offsetBeforeSeek, consumer.position(topicPartition));
