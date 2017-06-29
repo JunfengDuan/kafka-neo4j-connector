@@ -1,6 +1,7 @@
 package org.kafka.neo4j.client;
 
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.kafka.neo4j.job.KafkaConsumerJob;
@@ -39,6 +40,8 @@ public class KafkaConsumerClient {
     private  long kafkaPollIntervalMs;
     @Value("${startOption:RESTART}")
     private StartOption startOption;
+    @Value("${customTopic:Test}")
+    private String customTopic;
     @Autowired
     private KafkaConsumerUtil kafkaConsumerUtil;
     private static final Logger logger = LoggerFactory.getLogger(KafkaConsumerClient.class);
@@ -97,6 +100,16 @@ public class KafkaConsumerClient {
         //Make init poll to get assigned partitions
         consumer.poll(kafkaPollIntervalMs);
         Set<TopicPartition> assignedTopicPartitions = consumer.assignment();
+        Set<TopicPartition> customTopicPartition = new HashSet<>();
+
+        assignedTopicPartitions.forEach(topicPartition -> {
+            if(topicPartition.topic().equalsIgnoreCase(customTopic)){
+                TopicPartition tp = new TopicPartition(customTopic,topicPartition.partition());
+                customTopicPartition.add(tp);
+            }
+
+        });
+
 
         switch (startOption) {
             case EARLIEST:
@@ -109,12 +122,18 @@ public class KafkaConsumerClient {
             default:
                 break;
         }
-        assignedTopicPartitions.forEach(topicPartition -> {
-            long offsetBeforeSeek = consumer.position(topicPartition);
-            logger.info("Offset for partition: {} is moved from : {} to {}", topicPartition.partition(), offsetBeforeSeek, consumer.position(topicPartition));
-            logger.info("Offset position during the startup for consumerId : {}, partition : {}, offset : {}",
-                    Thread.currentThread().getName(), topicPartition.partition(), consumer.position(topicPartition));
+        if(customTopicPartition.size()>0){
+            consumer.seekToBeginning(customTopicPartition);
+//            assignedTopicPartitions.removeAll(customTopicPartition);
+        }
+
+        Set<TopicPartition> newAssignedTopicPartitions = consumer.assignment();
+        newAssignedTopicPartitions.forEach(newTp -> {
+            long offsetBeforeSeek = consumer.position(newTp);
+        logger.info("Offset position during the startup for consumerId : {}, partition : {}, offset : {}",
+                Thread.currentThread().getName(), newTp.topic()+"---"+newTp.partition(), offsetBeforeSeek);
         });
+
         consumer.commitSync();
         consumer.close();
     }

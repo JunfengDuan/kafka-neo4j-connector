@@ -29,6 +29,8 @@ import static org.kafka.neo4j.util.Cypher.*;
 public class Neo4jClient {
 
     private static final Logger logger = LoggerFactory.getLogger(Neo4jClient.class);
+    @org.springframework.beans.factory.annotation.Value("${host:localhost}")
+    private String host;
     @org.springframework.beans.factory.annotation.Value("${username:neo4j}")
     private String username;
     @org.springframework.beans.factory.annotation.Value("${password:neo4j}")
@@ -43,7 +45,7 @@ public class Neo4jClient {
 
         logger.info("Starting init neo4j...");
 //        Driver driver = GraphDatabase.driver( "bolt+routing://localhost", AuthTokens.basic("neo4j", "neo4j") );
-        driver = GraphDatabase.driver( "bolt://localhost:7687", AuthTokens.basic( username, password ) );
+        driver = GraphDatabase.driver( "bolt://"+host+":7687", AuthTokens.basic( username, password ) );
         logger.info("Init driver-{}",driver);
 
     }
@@ -60,11 +62,14 @@ public class Neo4jClient {
             if(CREATE_NODE.equals(operate)){
                 String nodeCypher = createNodeCypher(tag, params);
                 neo4jHandler.createNode(session, nodeCypher, params);
-            }else {
+            }else if(CREATE_RELATIONSHIP.equals(operate)){
                 String relationCypher = createRelationCypher(tag, params);
                 neo4jHandler.createNodeRelation(session, relationCypher);
+            }else if(UPDATE_NODE.equals(operate)){
+                Map updateNodeCypher = updateNodeCypher(tag, params);
+                neo4jHandler.updateNode(session, updateNodeCypher);
             }
-            logger.info("Successfully created :{}",message);
+            logger.info("Successfully {} :{}",operate,message);
         } catch (Exception e) {
             logger.error("{} failed, exception :{}",operate, e.getMessage());
         } finally {
@@ -105,9 +110,9 @@ public class Neo4jClient {
         ).map(entry -> entry.getKey()+":'"+entry.getValue()+"'").collect(Collectors.toList());
 
         String rel = StringUtils.join(list, ',');
-        String tag1 = (String) params.get(SOURCE) == null ? "" : (String) ((String) params.get(SOURCE)).toLowerCase();
+        String tag1 = (String) params.get(SOURCE) == null ? "" : (String) ((String) params.get(SOURCE));
         String sourceId = (String) params.get(SOURCEID);
-        String tag2 = (String) params.get(TARGET) == null ? "" : (String) ((String) params.get(TARGET)).toLowerCase();
+        String tag2 = (String) params.get(TARGET) == null ? "" : (String) ((String) params.get(TARGET));
         String targetId = (String) params.get(TARGETID);
         String match = String.format(MATCH_RELATION_STRING, tag1, ID, sourceId, tag2, ID, targetId);
         String createRel = match+" "+String.format(RELATION_STRING, relationName, rel);
@@ -156,7 +161,7 @@ public class Neo4jClient {
         Map<String, String> cypher = new HashMap<>();
         String remove = String.format(REMOVE_STRING, tag, ID, params.get(ID));
 
-        List list = params.entrySet().stream().map(entry -> entry.getKey()+":"+entry.getValue()).collect(Collectors.toList());
+        List list = params.entrySet().stream().map(entry -> entry.getKey()+":'"+entry.getValue()+"'").collect(Collectors.toList());
         String props = StringUtils.join(list, ',');
         String set = String.format(SET_STRING, tag, ID, params.get(ID), tag, props);
         cypher.put(REMOVE, remove);
@@ -167,15 +172,24 @@ public class Neo4jClient {
     private String operate(Map<String, Object> paras){
         Map<String, Object> params = new HashMap<>();
         paras.entrySet().forEach(entry -> params.put(entry.getKey().toLowerCase(),entry.getValue()));
+        boolean op = params.containsKey(OP) && StringUtils.isNotBlank((String) params.get(OP));
         boolean sourceFlag = params.containsKey(SOURCE) && StringUtils.isNotBlank((String) params.get(SOURCE));
         boolean targetFlag = params.containsKey(TARGET) && StringUtils.isNotBlank((String) params.get(TARGET));
         boolean sourceIdFlag = params.containsKey(SOURCEID) && StringUtils.isNotBlank((String) params.get(SOURCEID));
         boolean targetIdFlag = params.containsKey(TARGETID) && StringUtils.isNotBlank((String) params.get(TARGETID));
         boolean flag = sourceFlag && targetFlag && sourceIdFlag && targetIdFlag;
         if(flag){
-            return CREATE_RELATIONSHIP;
-        }else{
-            return CREATE_NODE;
+            if(op && (UPDATE_RELATIONSHIP.equalsIgnoreCase((String)params.get(OP)))){
+                return UPDATE_RELATIONSHIP;
+            }else{
+                return CREATE_RELATIONSHIP;
+            }
+        }else {
+            if(op && (UPDATE_NODE.equalsIgnoreCase((String)params.get(OP)))){
+                return UPDATE_NODE;
+            }else{
+                return CREATE_NODE;
+            }
         }
     }
 

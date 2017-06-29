@@ -5,15 +5,18 @@ package org.kafka.neo4j.util;
  */
 public interface Cypher {
 
-    String ID = "recordid";
+    String ID = "id";
     String SOURCEID = "sourceid";
     String TARGETID = "targetid";
     String REMOVE = "REMOVE";
     String SET = "SET";
     String CREATE_NODE = "create_node";
+    String UPDATE_NODE = "update_node";
     String CREATE_RELATIONSHIP = "create_relationship";
-    String SOURCE = "sourceentity";
-    String TARGET = "targetentity";
+    String UPDATE_RELATIONSHIP = "update_relationship";
+    String SOURCE = "source";
+    String TARGET = "target";
+    String OP = "op";
     /**
      * tag,
      * properties.
@@ -54,7 +57,7 @@ public interface Cypher {
      * index field,
      * field value
      */
-    String REMOVE_STRING = "MATCH (:%s { %s: %s }) SET n = {};";
+    String REMOVE_STRING = "MATCH (n:%s { %s: %s }) SET n = {};";
 
     /**
      * tag

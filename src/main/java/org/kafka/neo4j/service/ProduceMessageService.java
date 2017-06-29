@@ -21,7 +21,7 @@ public class ProduceMessageService {
         logger.info("*******************kafkaMessageProcess is started.**********************");
 
         simpleProducer= new KafkaProducerClient();
-        Map<String, JSONObject> map = getJsonObject1();
+        Map<String, JSONObject> map = getJsonObject2();
         map.entrySet().forEach(entry -> simpleProducer.sendMessage(entry.getKey(),entry.getValue()));
 
         simpleProducer.close();
@@ -29,11 +29,25 @@ public class ProduceMessageService {
         logger.info("*****************Messages are processed successfully ! ********************");
     }
 
+    public static Map getJsonObject2(){
+        Map<String, JSONObject> map = new HashMap();
+        JSONObject cadreJson = new JSONObject();
+        cadreJson.put("id", "222");
+        cadreJson.put("url","/zfcg/views/zfcg/zbgs/zfcg_zbgs_info.jsp");
+        cadreJson.put("parentTableName", "");
+        cadreJson.put("parentId", "");
+        cadreJson.put("zbje", "23");
+
+        map.put("per",cadreJson);
+        return  map;
+    }
+
     public static Map getJsonObject1(){
         Map<String, JSONObject> map = new HashMap();
         JSONObject cadreJson = new JSONObject();
-        cadreJson.put("id", "2");
+        cadreJson.put("id", "222");
         cadreJson.put("name","汪峰");
+        cadreJson.put("op","Delete");
 //        cadreJson.put("parentTableName", "");
 //        cadreJson.put("parentId", "");
 
@@ -46,7 +60,7 @@ public class ProduceMessageService {
         eduJson.put("parentId", cadreJson.get("id"));
 
 //        eduArray.add(eduJson);
-        map.put("p2",cadreJson);
+        map.put("per",cadreJson);
 //        map.put("edu",eduJson);
         return  map;
     }
