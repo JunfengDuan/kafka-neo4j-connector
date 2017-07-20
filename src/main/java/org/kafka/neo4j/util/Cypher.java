@@ -17,30 +17,31 @@ public interface Cypher {
     String SOURCE = "source";
     String TARGET = "target";
     String OP = "op";
+    String RELNAME = "relname";
     /**
-     * tag,
+     * label,
      * properties.
      */
     String CREATE_NODE_STRING = "CREATE (:%s { %s })";
 
     /**
-     * tag,
+     * label,
      * index field.
      */
     String INDEX_STRING = "CREATE INDEX ON :%s (%s)";
 
     /**
-     * tag,
-     * tag field.
+     * label,
+     * label field.
      */
     String UNIQUE_STRING = "CREATE CONSTRAINT ON (d:%s) ASSERT d.%s IS UNIQUE";
 
 
     /**
-     * tag1,
+     * label1,
      * index,
      * index field,
-     * tag2,
+     * label2,
      * index,
      * index field
      */
@@ -53,33 +54,33 @@ public interface Cypher {
     String RELATION_STRING = "CREATE (node1)-[r:%s {%s} ]->(node2)";
 
     /**
-     * tag,
+     * label,
      * index field,
      * field value
      */
     String REMOVE_STRING = "MATCH (n:%s { %s: %s }) SET n = {};";
 
     /**
-     * tag
+     * label
      * index field,
      * field value,
-     * tag,
+     * label,
      * properties
      */
-    String SET_STRING = "MATCH (%s { %s: %s }) SET %s += { %s }";
+    String SET_STRING = "MATCH (%s { %s: '%s' }) SET %s += { %s }";
 
     /**
-     * tag,
+     * label,
      * index field,
      * field value,
      */
     String QUERY_NODE_STRING = "MATCH (n:%s { %s: %s }),  RETURN n";
 
     /**
-     * tag1,
+     * label1,
      * index field1,
      * field value1,
-     * tag2,
+     * label2,
      * index field2,
      * field value2,
      * relationship

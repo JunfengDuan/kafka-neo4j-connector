@@ -12,9 +12,10 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -50,23 +51,23 @@ public class Neo4jClient {
 
     }
 
-    public void makeGraph(String tag, String message){
+    public void makeGraph(String label, String message){
         logger.info("Starting make graph...");
         Session session = driver.session();
         neo4jHandler = new Neo4jHandlerImpl();
 //        StatementResult result = null;
 
-        Map<String,Object> params = decode(message);
+        Map<String,Object> params = dateConvert(decode(message));
         String operate = operate(params);
         try {
             if(CREATE_NODE.equals(operate)){
-                String nodeCypher = createNodeCypher(tag, params);
+                String nodeCypher = createNodeCypher(label, params);
                 neo4jHandler.createNode(session, nodeCypher, params);
             }else if(CREATE_RELATIONSHIP.equals(operate)){
-                String relationCypher = createRelationCypher(tag, params);
+                String relationCypher = createRelationCypher(label, params);
                 neo4jHandler.createNodeRelation(session, relationCypher);
             }else if(UPDATE_NODE.equals(operate)){
-                Map updateNodeCypher = updateNodeCypher(tag, params);
+                Map updateNodeCypher = updateNodeCypher(label, params);
                 neo4jHandler.updateNode(session, updateNodeCypher);
             }
             logger.info("Successfully {} :{}",operate,message);
@@ -75,20 +76,20 @@ public class Neo4jClient {
         } finally {
             session.close();
         }
-//        neo4jHandler.createIndexOrUniqueConstraint(session, createIndexCypher(tag, ID), createUniqueConstCypher(tag, ID));
+//        neo4jHandler.createIndexOrUniqueConstraint(session, createIndexCypher(label, ID), createUniqueConstCypher(label, ID));
     }
 
     /**
      * CREATE (a:Person {  name: {name}, title: {title}  })
-     * @param tag
+     * @param label
      * @param params parameters( "name", "Arthur", "title", "King" )
      * @return
      */
-    private String createNodeCypher(String tag, Map<String,Object> params){
+    private String createNodeCypher(String label, Map<String,Object> params){
 
         List<String> list = params.keySet().stream().map(key -> key+": {"+key+"}").collect(Collectors.toList());
         String props  = StringUtils.join(list, ',');
-        String createNode = String.format(CREATE_NODE_STRING, tag, props);
+        String createNode = String.format(CREATE_NODE_STRING, label, props);
 
         logger.info("Create node cypher-{}",createNode);
         return createNode;
@@ -110,12 +111,13 @@ public class Neo4jClient {
         ).map(entry -> entry.getKey()+":'"+entry.getValue()+"'").collect(Collectors.toList());
 
         String rel = StringUtils.join(list, ',');
-        String tag1 = (String) params.get(SOURCE) == null ? "" : (String) ((String) params.get(SOURCE));
+        String label1 =  params.get(SOURCE) == null ? "" : (String) ( params.get(SOURCE));
         String sourceId = (String) params.get(SOURCEID);
-        String tag2 = (String) params.get(TARGET) == null ? "" : (String) ((String) params.get(TARGET));
+        String label2 =  params.get(TARGET) == null ? "" : (String) ( params.get(TARGET));
         String targetId = (String) params.get(TARGETID);
-        String match = String.format(MATCH_RELATION_STRING, tag1, ID, sourceId, tag2, ID, targetId);
-        String createRel = match+" "+String.format(RELATION_STRING, relationName, rel);
+        String match = String.format(MATCH_RELATION_STRING, label1, ID, sourceId, label2, ID, targetId);
+        String relName = params.get(RELNAME) == null ? relationName : (String) params.get(RELNAME);
+        String createRel = match+" "+String.format(RELATION_STRING, relName, rel);
 
         logger.info("Create relation cypher-{}",createRel);
         return createRel;
@@ -124,22 +126,22 @@ public class Neo4jClient {
     /**
      * Create index for entity
      * "CREATE INDEX ON :Cadre(cadreID)"
-     * @param tag The entity which will be indexed
+     * @param label The entity which will be indexed
      * @param indexField The index field
      * @return
      */
-    private String createIndexCypher(String tag, String indexField){
-        return String.format(INDEX_STRING,tag,indexField);
+    private String createIndexCypher(String label, String indexField){
+        return String.format(INDEX_STRING,label,indexField);
     }
 
     /**
      * Create unique constraint
-     * @param tag
+     * @param label
      * @param uniqueField
      * @return
      */
-    private String createUniqueConstCypher(String tag, String uniqueField){
-        return String.format(UNIQUE_STRING,tag,uniqueField);
+    private String createUniqueConstCypher(String label, String uniqueField){
+        return String.format(UNIQUE_STRING,label,uniqueField);
     }
 
     private Map<String,Object> decode(String message) {
@@ -147,6 +149,29 @@ public class Neo4jClient {
         JSONObject jsonObject = JSON.parseObject(message);
         jsonObject.entrySet().forEach(entry -> params.put(entry.getKey().toLowerCase(),entry.getValue()));
         return params;
+    }
+
+    private Map<String,Object> dateConvert(Map<String,Object> params){
+        Map<String,Object> paras = new HashMap<>();
+        params.entrySet().forEach(entry -> {
+            String key = entry.getKey();
+            Object value = entry.getValue();
+            if(key.contains("日期") || key.contains("时间") || key.toLowerCase().contains("date") ||
+                    key.toLowerCase().contains("time") ||
+                    key.toLowerCase().contains("day") ||  key.toLowerCase().contains("a0154")){
+                value = toDate((Long) entry.getValue());
+            }
+            paras.put(key, value);
+        });
+
+        return paras;
+    }
+
+    private static String toDate(Long now){
+        DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTimeInMillis(now);
+        return dateFormat.format(calendar.getTime());
     }
 
     /**
@@ -157,14 +182,12 @@ public class Neo4jClient {
        SET peter += { hungry: TRUE , position: 'Entrepreneur' }
      * @return
      */
-    private Map updateNodeCypher(String tag, Map<String,Object> params){
+    private Map updateNodeCypher(String label, Map<String,Object> params){
         Map<String, String> cypher = new HashMap<>();
-        String remove = String.format(REMOVE_STRING, tag, ID, params.get(ID));
-
-        List list = params.entrySet().stream().map(entry -> entry.getKey()+":'"+entry.getValue()+"'").collect(Collectors.toList());
+        List list = params.entrySet().stream().filter(e -> !OP.equalsIgnoreCase(e.getKey()) && !ID.equalsIgnoreCase(e.getKey()))
+                .map(entry -> entry.getKey()+":'"+entry.getValue()+"'").collect(Collectors.toList());
         String props = StringUtils.join(list, ',');
-        String set = String.format(SET_STRING, tag, ID, params.get(ID), tag, props);
-        cypher.put(REMOVE, remove);
+        String set = String.format(SET_STRING, label, ID, params.get(ID), label, props);
         cypher.put(SET, set);
         return cypher;
     }
@@ -177,7 +200,7 @@ public class Neo4jClient {
         boolean targetFlag = params.containsKey(TARGET) && StringUtils.isNotBlank((String) params.get(TARGET));
         boolean sourceIdFlag = params.containsKey(SOURCEID) && StringUtils.isNotBlank((String) params.get(SOURCEID));
         boolean targetIdFlag = params.containsKey(TARGETID) && StringUtils.isNotBlank((String) params.get(TARGETID));
-        boolean flag = sourceFlag && targetFlag && sourceIdFlag && targetIdFlag;
+        boolean flag = sourceFlag || targetFlag || sourceIdFlag || targetIdFlag;
         if(flag){
             if(op && (UPDATE_RELATIONSHIP.equalsIgnoreCase((String)params.get(OP)))){
                 return UPDATE_RELATIONSHIP;

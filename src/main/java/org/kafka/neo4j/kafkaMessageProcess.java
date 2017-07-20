@@ -10,6 +10,11 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
 
 /**
  * Created by jfd on 4/5/17.
@@ -38,6 +43,8 @@ public class kafkaMessageProcess{
 
     public static void main(String[] args){
 
-        ProduceMessageService.send();
+//        ProduceMessageService.send();
     }
+
+
 }

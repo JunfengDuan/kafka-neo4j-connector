@@ -40,7 +40,7 @@ public class KafkaConsumerClient {
     private  long kafkaPollIntervalMs;
     @Value("${startOption:RESTART}")
     private StartOption startOption;
-    @Value("${customTopic:Test}")
+    @Value("${customTopic:Einstein}")
     private String customTopic;
     @Autowired
     private KafkaConsumerUtil kafkaConsumerUtil;

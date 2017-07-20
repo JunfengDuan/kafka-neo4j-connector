@@ -65,11 +65,6 @@ public class Neo4jHandlerImpl implements Neo4jHandler{
 
         try ( org.neo4j.driver.v1.Transaction tx = session.beginTransaction() )
         {
-            tx.run((String)cypher.get(REMOVE));
-            tx.success();
-        }
-        try ( org.neo4j.driver.v1.Transaction tx = session.beginTransaction() )
-        {
             tx.run((String)cypher.get(SET));
             tx.success();
         }
