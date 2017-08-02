@@ -43,7 +43,7 @@ public class kafkaMessageProcess{
 
     public static void main(String[] args){
 
-//        ProduceMessageService.send();
+        ProduceMessageService.send();
     }
 
 

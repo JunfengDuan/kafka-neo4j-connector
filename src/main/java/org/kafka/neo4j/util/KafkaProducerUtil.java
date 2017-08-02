@@ -15,7 +15,7 @@ public class KafkaProducerUtil {
     public static Producer getProducer() {
 
         if(producer == null){
-            props.put("bootstrap.servers", "192.168.1.242:9092");
+            props.put("bootstrap.servers", "192.168.1.151:9092");
 //            props.put("bootstrap.servers", "127.0.0.1:9092");
 //            props.put("bootstrap.servers", "centos.master:9092,centos.slave1:9092,centos.slave2:9092");
 //            props.put("compression.type", "gzip");
